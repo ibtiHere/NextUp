@@ -16,6 +16,9 @@ const {
   createTask,
   completeTask,
   incompleteTask,
+  deleteTask,
+  deleteProject,
+  editProjectDetails,
 } = require("../Controllar/UserControllar");
 const auth = require("../Middlewares/auth");
 
@@ -39,7 +42,7 @@ Router.get("/projects", auth, getMyProjects);
 Router.post("/task", auth, createTask);
 Router.put("/task/:id/complete", auth, completeTask);
 Router.put("/task/:id/incomplete", auth, incompleteTask);
-
-// Router.put("/task/:taskId/uncomplete", auth, uncompleteTask);
-
+Router.delete("/tasks/:id", auth, deleteTask);
+Router.delete("/projects/:id", auth, deleteProject);
+Router.put("/edit-project/:id", auth, editProjectDetails);
 module.exports = Router;

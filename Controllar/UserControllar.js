@@ -571,16 +571,23 @@ exports.getProjectType = async (req, res) => {
 // Controller to get a single user by ID
 exports.getUserById = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const user = await User.findById(userId);
+    const id = req.params.id;
+    console.log("user====> ", id);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid Id format",
+      });
+    }
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
         status: "error",
-        message: "unauthorized user",
+        message: "user not found",
       });
     }
     //
-    return res.status(200).json({ user });
+    return res.status(200).json({ status: "success", data: user });
   } catch (err) {
     console.error("Error fetching user:", err);
     return res.status(500).json({ message: err.message });
@@ -856,6 +863,182 @@ exports.incompleteTask = async (req, res) => {
     return res.status(500).json({
       status: "error",
       message: "Failed to mark task as incomplete",
+    });
+  }
+};
+
+//delete task
+exports.deleteTask = async (req, res) => {
+  try {
+    console.log("deleted task route hit");
+    const taskId = req.params.id;
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "user not found",
+      });
+    }
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid taskId format",
+      });
+    }
+    // Find the task by ID
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({
+        status: "failed",
+        message: "Task not found",
+      });
+    }
+    const project = await Project.findById(task.project);
+    if (!project) {
+      return res.status(404).json({
+        status: "failed",
+        message: "Project not found",
+      });
+    }
+    if (project.user.toString() !== userId) {
+      return res.status(403).json({
+        status: "failed",
+        message: "Unauthorized to delete this task",
+      });
+    }
+    await Task.findByIdAndDelete(taskId);
+    return res.status(200).json({
+      status: "success",
+      message: "Task deleted successfully",
+    });
+  } catch (err) {
+    console.log("Error deleting task:", err);
+    return res.status(500).json({
+      status: "error",
+      message: err.message,
+    });
+  }
+};
+
+// delete project
+exports.deleteProject = async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "user not found",
+      });
+    }
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid taskId format",
+      });
+    }
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        status: "failed",
+        message: "Project not found",
+      });
+    }
+    if (project.user.toString() !== userId) {
+      return res.status(403).json({
+        status: "failed",
+        message: "Unauthorized to delete this project",
+      });
+    }
+    await Task.deleteMany({ project: projectId });
+    await ProjectType.deleteMany({ user: userId });
+    await Project.findByIdAndDelete(projectId);
+    return res.status(200).json({
+      status: "success",
+      message: "Project and associated tasks deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to delete project",
+    });
+  }
+};
+
+//edit project details
+exports.editProjectDetails = async (req, res) => {
+  try {
+    console.log("Edit Project route hits");
+    const { id: projectId } = req.params;
+    const { title, description, projectType } = req.body;
+    const userId = req.user.id;
+    if (!title || !description || !projectType) {
+      return res.status(400).json({
+        status: "failed",
+        message: "title, description, or projectType is missing",
+      });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "user not found",
+      });
+    }
+
+    if (
+      !mongoose.Types.ObjectId.isValid(projectId) ||
+      !mongoose.Types.ObjectId.isValid(projectType)
+    ) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid projectId or projectType format",
+      });
+    }
+
+    const project = await Project.findOne({
+      _id: projectId,
+      user: userId,
+    }).populate("tasks");
+    if (!project) {
+      return res.status(404).json({
+        status: "error",
+        message: "Project not found or unauthorized access",
+      });
+    }
+
+    // Validate projectType and ensure it belongs to the user
+    const existingProjectType = await ProjectType.findOne({
+      _id: projectType,
+      user: userId,
+    });
+    if (!existingProjectType) {
+      return res.status(404).json({
+        status: "error",
+        message: "Invalid project type or unauthorized access",
+      });
+    }
+
+    // Update project details
+    project.title = title;
+    project.description = description;
+    project.projectType = projectType;
+
+    // Save the updated project
+    await project.save();
+
+    return res.status(200).json({
+      status: "success",
+      data: project,
+    });
+  } catch (error) {
+    console.error("Error updating project details:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to update project details",
     });
   }
 };
