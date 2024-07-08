@@ -8,6 +8,8 @@ const mongoose = require("mongoose");
 const ProjectType = require("../Model/projectTypeSchema");
 const Project = require("../Model/ProjectSchema");
 const Task = require("../Model/TaskSchema");
+const path = require("path");
+const fs = require("fs").promises;
 // generate OTP
 const GenerateOTP = () => {
   const newOtp = randomstring.generate({
@@ -1042,3 +1044,219 @@ exports.editProjectDetails = async (req, res) => {
     });
   }
 };
+
+//edit user profile information
+exports.editUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { fullname, phone } = req.body;
+    if (!fullname || !phone) {
+      return res.status(400).json({
+        status: "failed",
+        message: "Fullname or phone number is missing",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "failed",
+        message: "User does not exist",
+      });
+    }
+
+    if (userId !== req.user.id) {
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized access to update profile",
+      });
+    }
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { fullname, phone },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        status: "error",
+        message: "User not found",
+      });
+    }
+    return res.status(200).json({
+      status: "success",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to update user profile",
+    });
+  }
+};
+
+//change password
+exports.changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        status: "failed",
+        message: "Current password or new password is missing",
+      });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "failed",
+        message: "User does not exist",
+      });
+    }
+    const isPasswordMatch = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+    if (!isPasswordMatch) {
+      return res.status(401).json({
+        status: "failed",
+        message: "Current password is incorrect",
+      });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+    return res.status(200).json({
+      status: "success",
+      message: "Password updated successfully",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      status: "error",
+      message: err.message,
+    });
+  }
+};
+
+exports.updateUserProfileImage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "failed",
+        message: "User not found",
+      });
+    }
+    if (!req.file) {
+      return res.status(400).json({
+        status: "failed",
+        message: "No image file uploaded",
+      });
+    }
+    if (userId !== req.user.id) {
+      return res.status(401).json({
+        status: "error",
+        message: "Unauthorized access to update profile image",
+      });
+    }
+    const previousImagePath = user.profileImage;
+    if (previousImagePath) {
+      const fullPath = path.join(__dirname, "..", previousImagePath);
+      try {
+        await fs.access(fullPath); // Check if file exist
+        await fs.unlink(fullPath); // Delete the file
+        console.log("Previous profile image deleted:", fullPath);
+      } catch (error) {
+        console.error("Error deleting previous profile image:", error);
+      }
+    }
+
+    console.log("path=======>", path.normalize(req.file.path));
+    const normalizedImagePath = req.file.path.replace(/\\/g, "/");
+    user.profileImage = normalizedImagePath;
+    const updatedUser = await user.save();
+    console.log("updatedUser======>", updatedUser);
+
+    return res.status(200).json({
+      status: "success",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error updating user profile image:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to update user profile image",
+    });
+  }
+};
+
+// //update user profile image
+// exports.updateUserProfileImage = async (req, res) => {
+//   try {
+//     console.log("============================================>", req.file.path);
+//     const userId = req.user.id;
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).josn({
+//         status: "failed",
+//         message: "User not found",
+//       });
+//     }
+//     if (!req.file) {
+//       return res.status(400).json({
+//         status: "failed",
+//         message: "No image file uploaded",
+//       });
+//     }
+//     if (userId !== req.user.id) {
+//       return res.status(401).json({
+//         status: "error",
+//         message: "Unauthorized access to update profile image",
+//       });
+//     }
+
+//     // Delete previous profile image if exists
+//     const previousImagePath = user.profileImage;
+//     if (previousImagePath) {
+//       const fullPath = path.join(__dirname, "..", previousImagePath);
+//       try {
+//         await fs.access(fullPath);
+//         await fs.unlink(fullPath);
+//       } catch (error) {
+//         console.error("Error deleting previous profile image:", error);
+//       }
+//     }
+//     user.profileImage = path.normalize(req.file.path);
+//     const updatedUser = await user.save();
+//     return res.status(200).json({
+//       status: "success",
+//       data: updatedUser,
+//     });
+
+//     // const updatedUser = await User.findByIdAndUpdate(
+//     //   userId,
+//     //   { profileImage: req.file.path }
+//     //   // { new: true }
+//     // );
+//     // if (!updatedUser) {
+//     //   return res.status(404).json({
+//     //     status: "error",
+//     //     message: "User not found",
+//     //   });
+//     // }
+//     // await user.save();
+//     // console.log("updated user ========>", updatedUser);
+//     // return res.status(200).json({
+//     //   status: "success",
+//     //   data: user,
+//     // });
+//   } catch (error) {
+//     console.error("Error updating user profile image:", error);
+//     return res.status(500).json({
+//       status: "error",
+//       message: "Failed to update user profile image",
+//     });
+//   }
+// };

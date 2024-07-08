@@ -7,7 +7,7 @@ const {
   forgetPassword,
   verfiyOTPForgetPass,
   setNewPassword,
-  addNewProject,
+  // addNewProject,
   getUserById,
   createProjectType,
   getProjectType,
@@ -19,8 +19,12 @@ const {
   deleteTask,
   deleteProject,
   editProjectDetails,
+  editUserProfile,
+  changePassword,
+  updateUserProfileImage,
 } = require("../Controllar/UserControllar");
 const auth = require("../Middlewares/auth");
+const upload = require("../Middlewares/multer");
 
 const Router = express.Router();
 //Routes
@@ -45,4 +49,15 @@ Router.put("/task/:id/incomplete", auth, incompleteTask);
 Router.delete("/tasks/:id", auth, deleteTask);
 Router.delete("/projects/:id", auth, deleteProject);
 Router.put("/edit-project/:id", auth, editProjectDetails);
+Router.put("/edit-profile", auth, editUserProfile);
+Router.post("/change-password", auth, changePassword);
+Router.put(
+  "/update-profile-image",
+  auth,
+  upload.single("image"),
+  updateUserProfileImage
+);
+
+//
+
 module.exports = Router;
