@@ -49,7 +49,7 @@ const sendOTPByEmail = async (email, otp) => {
   });
   // Setup email data
   let mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: process.env.EMAILUSER,
     to: email, // list of receivers
     subject: "OTP for Verification", // Subject line
     text: `Your OTP for forget password is ${otp}`, // plain text body
@@ -242,10 +242,13 @@ exports.login = async (req, res) => {
 
 //forgetPassword
 exports.forgetPassword = async (req, res, next) => {
+  console.log("email====>", email);
   try {
     const { email } = req.body;
+    console.log("email====>", email);
     checkEmailFormat(email);
     const user = await User.findOne({ email });
+    console.log("user======>", user);
     if (!user) {
       return res.status(404).json({
         success: "failed",
@@ -1172,7 +1175,6 @@ exports.updateUserProfileImage = async (req, res) => {
         console.error("Error deleting previous profile image:", error);
       }
     }
-
     console.log("path=======>", path.normalize(req.file.path));
     const normalizedImagePath = req.file.path.replace(/\\/g, "/");
     user.profileImage = normalizedImagePath;

@@ -10,7 +10,7 @@ const storage = multer.diskStorage({
     cb(null, "./images");
   },
   filename: function (req, file, cb) {
-    console.log("file=====>", file.name);
+    // console.log("file=====>", file.name);
     cb(
       null,
       `${Date.now()}-${Math.floor(Math.random() * 1e9)}${path.extname(
@@ -25,7 +25,6 @@ const fileFilter = function (req, file, cb) {
   if (!file.mimetype.startsWith("image/")) {
     return cb(new Error("Only image files are allowed!"), false);
   }
-
   // Check if the file extension is in the allowedExtensions array
   const ext = path.extname(file.originalname).toLowerCase();
   if (!allowedExtensions.includes(ext)) {
@@ -34,14 +33,13 @@ const fileFilter = function (req, file, cb) {
       false
     );
   }
-
   cb(null, true);
 };
 
 const upload = multer({
   storage: storage,
   //   limits: { fileSize: 1024 * 1024 }, // 1 MB size limit
-  fileFilter: fileFilter, // Assigning the file filter function here
+  fileFilter: fileFilter,
 });
 
 module.exports = upload;
