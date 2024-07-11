@@ -7,8 +7,9 @@ const auth = (req, res, next) => {
     if (token) {
       token = token.split(" ")[1];
       const user = jwt.verify(token, process.env.SCRATEKEY);
-      // console.log("user ====> ", user);
+      console.log("user ====> ", user);
       if (user) {
+        // console.log("user in auth =====>", user);
         // req.userId = user.id;
         req.user = user;
       }

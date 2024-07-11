@@ -502,6 +502,7 @@ exports.setNewPassword = async (req, res) => {
 
 // Create a new project type
 exports.createProjectType = async (req, res) => {
+  console.log("createProjectType hits");
   const { title } = req.body;
   const userId = req.user.id;
   const user = await User.findById(userId);
@@ -681,6 +682,13 @@ exports.getMyProjects = async (req, res) => {
     const projects = await Project.find({ user: userId })
       .populate("tasks")
       .populate("projectType");
+    console.log("projects============>", projects);
+
+    // Debugging logs
+    projects.forEach((project) => {
+      console.log("Project:", project);
+      console.log("Project Type:", project.projectType);
+    });
     if (!projects) {
       return res
         .status(404)
@@ -958,7 +966,7 @@ exports.deleteProject = async (req, res) => {
       });
     }
     await Task.deleteMany({ project: projectId });
-    await ProjectType.deleteMany({ user: userId });
+    // await ProjectType.deleteMany({ user: userId });
     await Project.findByIdAndDelete(projectId);
     return res.status(200).json({
       status: "success",
@@ -987,6 +995,7 @@ exports.editProjectDetails = async (req, res) => {
       });
     }
     const user = await User.findById(userId);
+    console.log("user in edit======>", user);
     if (!user) {
       return res.status(404).json({
         status: "error",
@@ -1008,6 +1017,9 @@ exports.editProjectDetails = async (req, res) => {
       _id: projectId,
       user: userId,
     }).populate("tasks");
+
+    console.log("project=====> edit ", project);
+
     if (!project) {
       return res.status(404).json({
         status: "error",
