@@ -734,7 +734,10 @@ exports.createTask = async (req, res) => {
         message: "unauthorized user",
       });
     }
-    const project = await Project.findOne({ _id: objectId, user: userId });
+    const project = await Project.findOne({
+      _id: objectId,
+      user: userId,
+    });
     if (!project) {
       return res.status(404).json({
         status: "failed",
@@ -756,10 +759,15 @@ exports.createTask = async (req, res) => {
     const savedTask = await newTask.save();
     project.tasks.push(savedTask._id);
     await project.save();
+    // const userProjects = await Project.findOne({
+    //   _id: objectId,
+    //   user: userId,
+    // }).populate("tasks");
     return res.status(201).json({
       status: "success",
       message: "Task created successfully",
       data: {
+        project: project,
         task: savedTask,
       },
     });
