@@ -242,7 +242,7 @@ exports.login = async (req, res) => {
 
 //forgetPassword
 exports.forgetPassword = async (req, res, next) => {
-  console.log("email====>", email);
+  // console.log("email====>", email);
   try {
     const { email } = req.body;
     console.log("email====>", email);
