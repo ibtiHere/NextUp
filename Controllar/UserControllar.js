@@ -819,6 +819,18 @@ exports.completeTask = async (req, res) => {
     task.isFinished = true;
     await task.save();
 
+    // Check if all tasks in the project are completed
+    const allTasksCompleted =
+      (await Task.find({
+        project: project._id,
+        isFinished: false,
+      }).countDocuments()) === 0;
+
+    if (allTasksCompleted) {
+      project.status = true; // Update project status to true
+      await project.save();
+    }
+
     return res.status(200).json({
       status: "success",
       message: "Task marked as completed",
@@ -871,6 +883,21 @@ exports.incompleteTask = async (req, res) => {
 
     task.isFinished = false;
     await task.save();
+
+    // Re-evaluate project status
+    const allTasksCompleted =
+      (await Task.find({
+        project: project._id,
+        isFinished: false,
+      }).countDocuments()) === 0;
+
+    if (allTasksCompleted) {
+      project.status = true; // Update project status to true
+      await project.save();
+    } else {
+      project.status = false; // Otherwise, set project status to false
+      await project.save();
+    }
 
     return res.status(200).json({
       status: "success",
