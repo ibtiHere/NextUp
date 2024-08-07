@@ -5,8 +5,8 @@ app.use(express.json());
 const databaseConnection = require("./config/db");
 
 databaseConnection();
-
-app.listen(process.env.PORT, () => {
+const port = process.env.PORT || 5001;
+app.listen(port, () => {
   console.log("server is listning on port 5000");
 });
 
