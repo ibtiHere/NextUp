@@ -28,6 +28,11 @@ const upload = require("../Middlewares/multer");
 
 const Router = express.Router();
 //Routes
+//testing
+Router.get('/server', (req, res) => {
+   return res.send('Hello Server');
+});
+
 Router.post("/request-account", requestAccount);
 Router.post("/verify-OTP", verifyOtp);
 Router.post("/signup", signUp);
