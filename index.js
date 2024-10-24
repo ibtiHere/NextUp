@@ -5,9 +5,9 @@ app.use(express.json());
 const databaseConnection = require("./config/db");
 
 databaseConnection();
-
-app.listen(process.env.PORT, () => {
-  console.log("server is listning on port 5000");
+const PORT = process.env.PORT || 5001;
+app.listen(PORT, () => {
+  console.log("server is listning on port " + PORT);
 });
 
 const userRoute = require("./Routes/UserRoute");

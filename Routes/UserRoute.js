@@ -22,6 +22,8 @@ const {
   editUserProfile,
   changePassword,
   updateUserProfileImage,
+  deleteProjectType,
+  changeTaskPosition,
 } = require("../Controllar/UserControllar");
 const auth = require("../Middlewares/auth");
 const upload = require("../Middlewares/multer");
@@ -50,6 +52,11 @@ Router.delete("/tasks/:id", auth, deleteTask);
 Router.delete("/projects/:id", auth, deleteProject);
 Router.put("/edit-project/:id", auth, editProjectDetails);
 Router.put("/edit-profile", auth, editUserProfile);
+
+// change task position
+Router.post("/change-task-position", auth, changeTaskPosition);
+// detele projecttype
+Router.delete("/delete-projectType/:id", auth, deleteProjectType);
 Router.post("/change-password", auth, changePassword);
 Router.put(
   "/update-profile-image",

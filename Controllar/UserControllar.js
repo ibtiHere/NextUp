@@ -9,6 +9,7 @@ const ProjectType = require("../Model/projectTypeSchema");
 const Project = require("../Model/ProjectSchema");
 const Task = require("../Model/TaskSchema");
 const path = require("path");
+const { reservationsUrl } = require("twilio/lib/jwt/taskrouter/util");
 const fs = require("fs").promises;
 // generate OTP
 const GenerateOTP = () => {
@@ -759,6 +760,12 @@ exports.createTask = async (req, res) => {
     const savedTask = await newTask.save();
     project.tasks.push(savedTask._id);
     await project.save();
+
+    // Populate the tasks array in the project
+    const populatedProject = await Project.findById(projectId).populate(
+      "tasks"
+    );
+
     // const userProjects = await Project.findOne({
     //   _id: objectId,
     //   user: userId,
@@ -767,8 +774,7 @@ exports.createTask = async (req, res) => {
       status: "success",
       message: "Task created successfully",
       data: {
-        project: project,
-        task: savedTask,
+        project: populatedProject,
       },
     });
   } catch (err) {
@@ -1016,6 +1022,56 @@ exports.deleteProject = async (req, res) => {
   }
 };
 
+// deleteProjectType
+exports.deleteProjectType = async (req, res) => {
+  try {
+    const projectTypeId = req.params.id;
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "user not found",
+      });
+    }
+    if (!mongoose.Types.ObjectId.isValid(projectTypeId)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid projectType id format",
+      });
+    }
+
+    const projectType = await ProjectType.findById(projectTypeId);
+    if (!projectType) {
+      return res.status.json({
+        status: "error",
+        message: "Project type not found",
+      });
+    }
+    // Check if the user is the creator of the ProjectType
+    if (projectType.user.toString() !== userId) {
+      return res.status(403).json({
+        status: "error",
+        message: "You are not authorized to delete this project type",
+      });
+    }
+
+    await Project.deleteMany({ projectType: projectTypeId });
+    // Delete the ProjectType itself
+    await projectType.deleteOne();
+    return res.status(200).json({
+      status: "success",
+      message: "Project type and associated projects deleted successfully",
+    });
+  } catch (err) {
+    console.error("Error deleting project type:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to delete project type",
+    });
+  }
+};
+
 //edit project details
 exports.editProjectDetails = async (req, res) => {
   try {
@@ -1241,6 +1297,511 @@ exports.updateUserProfileImage = async (req, res) => {
   }
 };
 
+exports.changeTaskPosition = async (req, res) => {
+  console.log("changeTaskPosition initiated");
+
+  try {
+    const userId = req.user.id;
+    const { projectId, taskId, newPosition } = req.body;
+
+    // Validate projectId and taskId
+    if (
+      !mongoose.Types.ObjectId.isValid(projectId) ||
+      !mongoose.Types.ObjectId.isValid(taskId)
+    ) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid projectId or taskId format",
+      });
+    }
+
+    // Validate newPosition
+    if (typeof newPosition !== "number" || newPosition < 0) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid new position. Must be a positive number.",
+      });
+    }
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "User not found",
+      });
+    }
+
+    // Find the project by ID and populate only the tasks array
+    const project = await Project.findById(projectId).populate("tasks");
+    if (!project) {
+      return res.status(404).json({
+        status: "error",
+        message: "Project not found",
+      });
+    }
+
+    console.log("Project found, validating task presence...");
+
+    // Find the current index of the task in the project
+    const currentTaskIndex = project.tasks.findIndex((task) =>
+      task._id.equals(taskId)
+    );
+
+    if (currentTaskIndex === -1) {
+      return res.status(404).json({
+        status: "error",
+        message: "Task not found in the project",
+      });
+    }
+
+    // Log the current tasks array for debugging
+    console.log("Current tasks:", project.tasks);
+
+    // Ensure the new position is within bounds
+    if (newPosition >= project.tasks.length) {
+      return res.status(400).json({
+        status: "error",
+        message: `New position exceeds array bounds. Maximum allowed position is ${
+          project.tasks.length - 1
+        }.`,
+      });
+    }
+
+    console.log(`Moving task from index ${currentTaskIndex} to ${newPosition}`);
+
+    // Remove the task from its current position
+    const taskToMove = project.tasks.splice(currentTaskIndex, 1)[0];
+
+    // Insert the task at the new position
+    project.tasks.splice(newPosition, 0, taskToMove);
+
+    console.log("Updated task order:", project.tasks);
+
+    // Save the updated project
+    await project.save();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Task position changed successfully",
+      project: project, // The project object will include populated tasks
+    });
+  } catch (err) {
+    console.error("Error changing task position:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Internal server error",
+    });
+  }
+};
+
+// exports.changeTaskPosition = async (req, res) => {
+//   console.log("changeTaskPosition initiated");
+
+//   try {
+//     const userId = req.user.id;
+//     const { projectId, taskId, newPosition } = req.body;
+
+//     // Validate projectId and taskId
+//     if (
+//       !mongoose.Types.ObjectId.isValid(projectId) ||
+//       !mongoose.Types.ObjectId.isValid(taskId)
+//     ) {
+//       return res.status(400).json({
+//         status: "error",
+//         message: "Invalid projectId or taskId format",
+//       });
+//     }
+
+//     // Validate newPosition
+//     if (typeof newPosition !== "number" || newPosition < 0) {
+//       return res.status(400).json({
+//         status: "error",
+//         message: "Invalid new position. Must be a positive number.",
+//       });
+//     }
+
+//     // Find the user
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "User not found",
+//       });
+//     }
+
+//     // Find the project by ID and populate tasks with full details
+//     const project = await Project.findById(projectId).populate("tasks");
+
+//     if (!project) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "Project not found",
+//       });
+//     }
+
+//     console.log("Project found, validating task presence...");
+
+//     // Find the current index of the task in the project
+//     const currentTaskIndex = project.tasks.findIndex((task) =>
+//       task._id.equals(taskId)
+//     );
+
+//     if (currentTaskIndex === -1) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "Task not found in the project",
+//       });
+//     }
+
+//     // Log the current tasks array for debugging
+//     console.log("Current tasks:", project.tasks);
+
+//     // Ensure the new position is within bounds
+//     if (newPosition >= project.tasks.length) {
+//       return res.status(400).json({
+//         status: "error",
+//         message: `New position exceeds array bounds. Maximum allowed position is ${
+//           project.tasks.length - 1
+//         }.`,
+//       });
+//     }
+
+//     console.log(`Moving task from index ${currentTaskIndex} to ${newPosition}`);
+
+//     // Remove the task from its current position
+//     project.tasks.splice(currentTaskIndex, 1);
+
+//     // Insert the task at the new position
+//     project.tasks.splice(newPosition, 0, taskId);
+
+//     console.log("Updated task order:", project.tasks);
+
+//     // Save the updated project
+//     await project.save();
+
+//     return res.status(200).json({
+//       status: "success",
+//       message: "Task position changed successfully",
+//       project: project,
+//     });
+//   } catch (err) {
+//     console.error("Error changing task position:", err);
+//     return res.status(500).json({
+//       status: "error",
+//       message: "Internal server error",
+//     });
+//   }
+// };
+
+// exports.changeTaskPosition = async (req, res) => {
+//   console.log("changeTaskPosition initiated");
+
+//   try {
+//     const userId = req.user.id;
+//     const { projectId, taskId, newPosition } = req.body;
+
+//     // Validate projectId and taskId
+//     if (
+//       !mongoose.Types.ObjectId.isValid(projectId) ||
+//       !mongoose.Types.ObjectId.isValid(taskId)
+//     ) {
+//       return res.status(400).json({
+//         status: "error",
+//         message: "Invalid projectId or taskId format",
+//       });
+//     }
+
+//     // Validate newPosition
+//     if (typeof newPosition !== "number" || newPosition < 0) {
+//       return res.status(400).json({
+//         status: "error",
+//         message: "Invalid new position. Must be a positive number.",
+//       });
+//     }
+
+//     // Find the user
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "User not found",
+//       });
+//     }
+
+//     // Find the project by ID
+//     const project = await Project.findById(projectId).populate("tasks");
+//     if (!project) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "Project not found",
+//       });
+//     }
+
+//     console.log("Project found, validating task presence...");
+
+//     // Find the current index of the task in the project
+//     const currentTaskIndex = project.tasks.indexOf(taskId);
+//     // const currentTaskIndex = project.tasks.findIndex((task) =>
+//     //   task._id.equals(taskId)
+//     // );
+
+//     if (currentTaskIndex === -1) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "Task not found in the project",
+//       });
+//     }
+
+//     // Log the current tasks array for debugging
+//     console.log("Current tasks:", project.tasks);
+
+//     // Ensure the new position is within bounds
+//     if (newPosition >= project.tasks.length) {
+//       return res.status(400).json({
+//         status: "error",
+//         message: `New position exceeds array bounds. Maximum allowed position is ${
+//           project.tasks.length - 1
+//         }.`,
+//       });
+//     }
+
+//     console.log(`Moving task from index ${currentTaskIndex} to ${newPosition}`);
+
+//     // Remove the task from its current position
+//     project.tasks.splice(currentTaskIndex, 1);
+
+//     // Insert the task at the new position
+//     project.tasks.splice(newPosition, 0, taskId);
+
+//     console.log("Updated task order:", project.tasks);
+
+//     // Save the updated project
+//     await project.save();
+
+//     return res.status(200).json({
+//       status: "success",
+//       message: "Task position changed successfully",
+//       project: project,
+//     });
+//   } catch (err) {
+//     console.error("Error changing task position:", err);
+//     return res.status(500).json({
+//       status: "error",
+//       message: "Internal server error",
+//     });
+//   }
+// };
+
+// exports.changeTaskPosition = async (req, res) => {
+//   try {
+//     const userId = req.user.id; // Getting the user ID from the authenticated request
+//     const { projectId, taskId, newPosition } = req.body;
+
+//     // Validate projectId and taskId formats
+//     if (
+//       !mongoose.Types.ObjectId.isValid(projectId) ||
+//       !mongoose.Types.ObjectId.isValid(taskId)
+//     ) {
+//       return res.status(400).json({
+//         status: "error",
+//         message: "Invalid projectId or taskId format",
+//       });
+//     }
+
+//     // Validate that the newPosition is a valid number
+//     if (typeof newPosition !== "number" || newPosition < 0) {
+//       return res.status(400).json({
+//         status: "error",
+//         message: "Invalid new position",
+//       });
+//     }
+
+//     // Find the user
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "User not found",
+//       });
+//     }
+
+//     // Find the project by ID
+//     const project = await Project.findById(projectId);
+//     if (!project) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "Project not found",
+//       });
+//     }
+
+//     // Find the current index of the task within the project tasks array
+//     const currentTaskIndex = project.tasks.indexOf(taskId);
+//     if (currentTaskIndex === -1) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: "Task not found in the project",
+//       });
+//     }
+
+//     // Remove the task from its current position
+//     project.tasks.splice(currentTaskIndex, 1);
+
+//     // Ensure the new position is within bounds of the tasks array length
+//     const validNewPosition = Math.min(newPosition, project.tasks.length);
+
+//     // Insert the task at the valid new position
+//     project.tasks.splice(validNewPosition, 0, taskId);
+
+//     // Save the updated project
+//     await project.save();
+
+//     return res.status(200).json({
+//       status: "success",
+//       message: "Task position changed successfully",
+//       project: project, // Return the updated project with modified task order
+//     });
+//   } catch (err) {
+//     return res.status(500).json({
+//       status: "error",
+//       message: err.message,
+//     });
+//   }
+// };
+
+/*
+
+const mongoose = require("mongoose");
+const Project = require("../models/Project"); // Import the Project model
+
+// Controller to change the position of a task in a project
+exports.changeTaskPosition = async (req, res) => {
+  try {
+    const { projectId, taskId, newPosition } = req.body; // Get projectId, taskId, and the new position from the request body
+
+    // Validate projectId and taskId formats
+    if (!mongoose.Types.ObjectId.isValid(projectId) || !mongoose.Types.ObjectId.isValid(taskId)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid projectId or taskId format",
+      });
+    }
+
+    // Validate that the new position is a valid number
+    if (typeof newPosition !== "number" || newPosition < 0) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid new position",
+      });
+    }
+
+    // Find the project by ID
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        status: "error",
+        message: "Project not found",
+      });
+    }
+
+    // Find the current index of the task
+    const currentTaskIndex = project.tasks.indexOf(taskId);
+    if (currentTaskIndex === -1) {
+      return res.status(404).json({
+        status: "error",
+        message: "Task not found in the project",
+      });
+    }
+
+    // Remove the task from its current position
+    project.tasks.splice(currentTaskIndex, 1);
+
+    // Ensure the new position is within bounds
+    const newTaskPosition = Math.min(newPosition, project.tasks.length);
+
+    // Insert the task at the new position
+    project.tasks.splice(newTaskPosition, 0, taskId);
+
+    // Save the updated project
+    await project.save();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Task position changed successfully",
+      project: project,
+    });
+  } catch (err) {
+    console.error("Error changing task position:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to change task position",
+    });
+  }
+};
+
+
+
+//////
+
+const mongoose = require("mongoose");
+const Project = require("../models/Project"); // Import the Project model
+
+// Controller to swap two tasks in a project
+exports.swapTasks = async (req, res) => {
+  try {
+    const { projectId, task1Id, task2Id } = req.body; // Extract projectId, task1Id, task2Id from the request body
+
+    // Validate projectId, task1Id, task2Id formats
+    if (!mongoose.Types.ObjectId.isValid(projectId) || 
+        !mongoose.Types.ObjectId.isValid(task1Id) || 
+        !mongoose.Types.ObjectId.isValid(task2Id)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid IDs format",
+      });
+    }
+
+    // Find the project by ID
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        status: "error",
+        message: "Project not found",
+      });
+    }
+
+    // Check if both tasks exist in the project's task list
+    const task1Index = project.tasks.indexOf(task1Id);
+    const task2Index = project.tasks.indexOf(task2Id);
+
+    if (task1Index === -1 || task2Index === -1) {
+      return res.status(404).json({
+        status: "error",
+        message: "One or both tasks not found in the project",
+      });
+    }
+
+    // Swap the tasks in the tasks array
+    [project.tasks[task1Index], project.tasks[task2Index]] = [project.tasks[task2Index], project.tasks[task1Index]];
+
+    // Save the updated project
+    await project.save();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Tasks swapped successfully",
+      project: project,
+    });
+  } catch (err) {
+    console.error("Error swapping tasks:", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to swap tasks",
+    });
+  }
+};
+////////////////////////////
+* */
 // //update user profile image
 // exports.updateUserProfileImage = async (req, res) => {
 //   try {
