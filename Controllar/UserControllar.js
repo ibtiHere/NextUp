@@ -605,29 +605,37 @@ exports.getUserById = async (req, res) => {
 exports.createProject = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, description, projectType } = req.body;
-    if (!title || !description || !projectType) {
+    const { title, description, projectType, date } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !projectType || !date) {
       return res.status(400).json({
         status: "failed",
-        message: "title or description or project type is missing",
+        message: "Title, description, project type, and date are required",
       });
     }
-    let objectId;
-    try {
-      objectId = new mongoose.Types.ObjectId(projectType);
-    } catch (err) {
-      return res.status(400).json({ message: err.message });
-    }
 
+    // Check if the user exists
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
         status: "error",
-        message: "unauthorized user",
+        message: "Unauthorized user",
       });
     }
+
+    // Convert the date string to a valid Date object
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        status: "failed",
+        message: "Invalid date format. Please use YYYY-MM-DD.",
+      });
+    }
+
+    // Check if the project type exists for the current user
     const existingProjectType = await ProjectType.findOne({
-      _id: objectId,
+      _id: projectType,
       user: userId,
     });
     if (!existingProjectType) {
@@ -636,8 +644,8 @@ exports.createProject = async (req, res) => {
         message: "Project type not found for the current user",
       });
     }
-    console.log("existing project type=======>", existingProjectType);
 
+    // Check if a project with the same title already exists for the user
     const existingProject = await Project.findOne({ title, user: userId });
     if (existingProject) {
       return res.status(400).json({
@@ -646,14 +654,17 @@ exports.createProject = async (req, res) => {
       });
     }
 
+    // Create the new project
     const newProject = new Project({
       title,
       description,
       user: userId,
       projectType,
       tasks: [],
+      date: parsedDate, // Use the parsed date
     });
     await newProject.save();
+
     return res.status(201).json({
       status: "success",
       message: "Project created successfully",
@@ -661,6 +672,7 @@ exports.createProject = async (req, res) => {
         project: newProject,
       },
     });
+
   } catch (err) {
     console.error("Error creating project:", err);
     return res.status(500).json({
@@ -669,6 +681,8 @@ exports.createProject = async (req, res) => {
     });
   }
 };
+
+
 
 exports.getMyProjects = async (req, res) => {
   try {
@@ -852,6 +866,76 @@ exports.completeTask = async (req, res) => {
     });
   }
 };
+
+//update task
+exports.updateTask = async (req, res) => {
+  try {
+    const taskId = req.params.id;
+    const userId = req.user.id;
+    const { title, description } = req.body;
+
+    // Validate title and description
+    if (!title || !description) {
+      return res.status(400).json({
+        status: "error",
+        message: "Title and description are required",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        message: "Unauthorized user",
+      });
+    }
+
+    // Check if taskId is valid
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid taskId format",
+      });
+    }
+
+    // Find the task by ID using findById
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({
+        status: "failed",
+        message: "Task not found",
+      });
+    }
+
+    // Optional: Check if the task belongs to the user (if applicable)
+    // if (task.userId.toString() !== userId) {
+    //   return res.status(403).json({
+    //     status: "error",
+    //     message: "You are not authorized to update this task",
+    //   });
+    // }
+
+    // Update the task
+    task.title = title;
+    task.description = description;
+    await task.save();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Task updated successfully",
+      data: {
+        task,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating task:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to update task",
+    });
+  }
+};
+
 
 // uncomplete task
 exports.incompleteTask = async (req, res) => {
@@ -1255,6 +1339,7 @@ exports.updateUserProfileImage = async (req, res) => {
         message: "User not found",
       });
     }
+
     if (!req.file) {
       return res.status(400).json({
         status: "failed",
@@ -1362,9 +1447,8 @@ exports.changeTaskPosition = async (req, res) => {
     if (newPosition >= project.tasks.length) {
       return res.status(400).json({
         status: "error",
-        message: `New position exceeds array bounds. Maximum allowed position is ${
-          project.tasks.length - 1
-        }.`,
+        message: `New position exceeds array bounds. Maximum allowed position is ${project.tasks.length - 1
+          }.`,
       });
     }
 
@@ -1752,8 +1836,8 @@ exports.swapTasks = async (req, res) => {
     const { projectId, task1Id, task2Id } = req.body; // Extract projectId, task1Id, task2Id from the request body
 
     // Validate projectId, task1Id, task2Id formats
-    if (!mongoose.Types.ObjectId.isValid(projectId) || 
-        !mongoose.Types.ObjectId.isValid(task1Id) || 
+    if (!mongoose.Types.ObjectId.isValid(projectId) ||
+        !mongoose.Types.ObjectId.isValid(task1Id) ||
         !mongoose.Types.ObjectId.isValid(task2Id)) {
       return res.status(400).json({
         status: "error",

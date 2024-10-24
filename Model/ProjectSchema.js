@@ -142,6 +142,11 @@ const ProjectSchema = new Schema({
       ref: "Task",
     },
   ],
+  date: {
+    type: Date,
+    default: Date.now,
+    required: true,
+  }
 });
 
 module.exports = mongoose.model("Project", ProjectSchema);

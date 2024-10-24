@@ -1,13 +1,10 @@
 const jwt = require("jsonwebtoken");
 const auth = (req, res, next) => {
-  console.log("auth wala run ??????????????????????????????");
   try {
     let token = req.headers.authorization;
-    console.log("token ====>", token);
     if (token) {
       token = token.split(" ")[1];
       const user = jwt.verify(token, process.env.SCRATEKEY);
-      console.log("user ====> ", user);
       if (user) {
         // console.log("user in auth =====>", user);
         // req.userId = user.id;

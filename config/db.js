@@ -2,17 +2,11 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 dotenv.config();
 console.log(process.env);
-const db = process.env.DATABASEURL;
-console.log("database ==>", db);
+const dbUrl = process.env.DATABASE_URL;
+
 const databaseConnection = () => {
   mongoose
-<<<<<<< HEAD
-    .connect(db)
-=======
-    .connect(db, {
-      
-    })
->>>>>>> origin/main
+    .connect(dbUrl)
     .then(() => {
       console.log("database connection established");
     })

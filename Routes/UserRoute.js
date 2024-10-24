@@ -1,4 +1,6 @@
 const express = require("express");
+
+const app = express();
 const {
   requestAccount,
   verifyOtp,
@@ -7,6 +9,7 @@ const {
   forgetPassword,
   verfiyOTPForgetPass,
   setNewPassword,
+  updateTask,
   // addNewProject,
   getUserById,
   createProjectType,
@@ -32,14 +35,7 @@ const Router = express.Router();
 //Routes
 //testing
 
-// Define a route
-app.get('/', (req, res) => {
-    res.send('Hello, world!');
-});
 
-Router.get('/server', (req, res) => {
-   return res.send('Hello Server');
-});
 
 Router.post("/request-account", requestAccount);
 Router.post("/verify-OTP", verifyOtp);
@@ -57,6 +53,7 @@ Router.get("/project-type", auth, getProjectType);
 Router.post("/projects", auth, createProject);
 Router.get("/projects", auth, getMyProjects);
 Router.post("/task", auth, createTask);
+Router.put("/task/:id", auth, updateTask);
 Router.put("/task/:id/complete", auth, completeTask);
 Router.put("/task/:id/incomplete", auth, incompleteTask);
 Router.delete("/tasks/:id", auth, deleteTask);
@@ -69,12 +66,7 @@ Router.post("/change-task-position", auth, changeTaskPosition);
 // detele projecttype
 Router.delete("/delete-projectType/:id", auth, deleteProjectType);
 Router.post("/change-password", auth, changePassword);
-Router.put(
-  "/update-profile-image",
-  auth,
-  upload.single("image"),
-  updateUserProfileImage
-);
+Router.put("/update-profile-image", auth, upload.single("image"), updateUserProfileImage);
 
 //
 
