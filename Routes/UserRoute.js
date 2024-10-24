@@ -30,6 +30,17 @@ const upload = require("../Middlewares/multer");
 
 const Router = express.Router();
 //Routes
+//testing
+
+// Define a route
+app.get('/', (req, res) => {
+    res.send('Hello, world!');
+});
+
+Router.get('/server', (req, res) => {
+   return res.send('Hello Server');
+});
+
 Router.post("/request-account", requestAccount);
 Router.post("/verify-OTP", verifyOtp);
 Router.post("/signup", signUp);

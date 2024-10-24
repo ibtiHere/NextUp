@@ -6,7 +6,13 @@ const db = process.env.DATABASEURL;
 console.log("database ==>", db);
 const databaseConnection = () => {
   mongoose
+<<<<<<< HEAD
     .connect(db)
+=======
+    .connect(db, {
+      
+    })
+>>>>>>> origin/main
     .then(() => {
       console.log("database connection established");
     })
